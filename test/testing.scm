@@ -38,4 +38,10 @@
      (let ((v value)
            (e expected))
        (unless (predicate v e)
-         (raise (make-assert-exception predicate 'value v e)))))))
+         (raise (make-assert-exception predicate 'value v e)))))
+    ((assert predicate value)
+     (let ((v value))
+       (unless (predicate v)
+         (raise (make-assert-exception predicate 'value v #t)))))))
+
+(define true? (compose not false?))
