@@ -1,6 +1,15 @@
-(require racket/exn)
+(require racket/format)
 
 (define-struct test-failed-exception (msg))
+
+(define-struct assert-exception (predicate expression value expected))
+
+(define (assert->string e)
+  (format "~a did not satisfy ~a\n\texpected: ~a\n\treceived: ~a\n"
+          (assert-exception-expression e)
+          (assert-exception-predicate e)
+          (assert-exception-expected e)
+          (assert-exception-value e)))
 
 (define-syntax describe
   (syntax-rules ()
@@ -8,7 +17,7 @@
      (map (lambda (thunk)
             (with-handlers ((test-failed-exception?
                              (lambda (e)
-                               (display (test-failed-exception-msg e))
+                               (display (string-append what " - " (test-failed-exception-msg e)))
                                (newline))))
               (thunk)))
           (list body ...)))))
@@ -17,14 +26,16 @@
   (syntax-rules ()
     ((it what body ...)
      (lambda ()
-       (with-handlers ((exn:fail?
+       (with-handlers ((assert-exception?
                         (lambda (e)
                           (raise (make-test-failed-exception
-                                  (string-append "'" what "' failed: " (exn->string e)))))))
+                                  (string-append what ": " (assert->string e)))))))
          body ...)))))
 
-(define (assert predicate value expected)
-  (unless (predicate value expected)
-      (error "" value " did not " predicate expected)))
-
-(define assert-equal? (curry assert equal?))
+(define-syntax assert
+  (syntax-rules ()
+    ((assert predicate value expected)
+     (let ((v value)
+           (e expected))
+       (unless (predicate v e)
+         (raise (make-assert-exception predicate 'value v e)))))))
