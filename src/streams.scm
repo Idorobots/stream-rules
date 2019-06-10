@@ -1,25 +1,27 @@
-;; Reactive streams
+;; Streams
+
+(load "../src/utils.scm")
 
 (define-struct stream-stage (prev materializer))
 (define-struct materialized-stream-stage (emitter))
 
-(define ((materialize f) next)
-  (make-materialized-stream-stage (f next)))
-
-(define (stage materializer)
-  (make-stream-stage '() materializer))
+(define (stage f)
+  (make-stream-stage '()
+                     (lambda (next)
+                       (make-materialized-stream-stage (lambda (value)
+                                                         (f next value))))))
 
 (define (push stage value)
   ((materialized-stream-stage-emitter stage) value))
 
 (define (source)
-  (stage (materialize (lambda (next) (curry push next)))))
+  (stage push))
 
 (define (flow f)
-  (stage (materialize (lambda (next) (compose (curry push next) f)))))
+  (stage (lambda (next value) (push next (f value)))))
 
 (define (sink f)
-  (stage (materialize (lambda (_) f))))
+  (stage (lambda (_ value) (f value))))
 
 (define (via source flow)
   (make-stream-stage source
@@ -27,21 +29,25 @@
 
 (define to via)
 
-(define (run sink)
-  (when (stream-stage? sink)
-    (define (run-acc stage acc)
+(define (run-stream stream)
+  (when (stream-stage? stream)
+    (let loop ((stage stream)
+               (acc '()))
       (if (null? stage)
           acc
-          (run-acc (stream-stage-prev stage)
-                   ((stream-stage-materializer stage) acc))))
-    (run-acc sink '())))
+          (loop (stream-stage-prev stage)
+                ((stream-stage-materializer stage) acc))))))
+
+(define (run-with source sink)
+  (-> source
+      (to sink)
+      (run-stream)))
 
 (define (map-stream source f)
   (via source (flow f)))
 
 (define (filter-stream source p)
   (via source
-       (stage (materialize (lambda (next)
-                             (lambda (value)
-                               (when (p value)
-                                 (push next value))))))))
+       (stage (lambda (next value)
+                (when (p value)
+                  (push next value))))))
