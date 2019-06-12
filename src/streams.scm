@@ -7,15 +7,21 @@
 
 (define (stage f)
   (make-stream-stage '()
-                     (lambda (next)
-                       (make-materialized-stream-stage (lambda (value)
-                                                         (f next value))))))
+                     (lambda (self next)
+                       (let ((p (stream-stage-prev self)))
+                         ((stream-stage-materializer p)
+                          p
+                          (make-materialized-stream-stage (lambda (value)
+                                                            (f next value))))))))
 
 (define (push stage value)
   ((materialized-stream-stage-emitter stage) value))
 
 (define (source)
-  (stage push))
+  (make-stream-stage '()
+                     (lambda (self next)
+                       (make-materialized-stream-stage (lambda (value)
+                                                         (push next value))))))
 
 (define (flow f)
   (stage (lambda (next value) (push next (f value)))))
@@ -31,12 +37,7 @@
 
 (define (run-stream stream)
   (when (stream-stage? stream)
-    (let loop ((stage stream)
-               (acc '()))
-      (if (null? stage)
-          acc
-          (loop (stream-stage-prev stage)
-                ((stream-stage-materializer stage) acc))))))
+    ((stream-stage-materializer stream) stream '())))
 
 (define (run-with source sink)
   (-> source
@@ -44,10 +45,22 @@
       (run-stream)))
 
 (define (map-stream source f)
-  (via source (flow f)))
+  (-> source
+      (via (flow f))))
 
 (define (filter-stream source p)
-  (via source
-       (stage (lambda (next value)
-                (when (p value)
-                  (push next value))))))
+  (-> source
+      (via (stage (lambda (next value)
+                    (when (p value)
+                      (push next value)))))))
+
+(define (either . streams)
+  (make-stream-stage '()
+                     (lambda (_ next)
+                       (let ((self (make-materialized-stream-stage (lambda (value)
+                                                                     (push next value)))))
+                         (map (lambda (stream)
+                                ((stream-stage-materializer stream)
+                                 stream
+                                 self))
+                              streams)))))
