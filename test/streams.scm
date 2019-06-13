@@ -27,7 +27,9 @@
      (define in (-> (source)
                     (run-with (sink number?))))
      (assert materialized-stream-stage? in)
-     (assert void? (run-stream in)))
+     (assert equal? (with-handlers ((exn:fail?
+                                     (constantly 'error)))
+                      (run-stream in)) 'error))
  (it "should be composeable"
      (define v #f)
      (define in (-> (source)
@@ -54,10 +56,10 @@
      (assert equal? v #f)
      (push in 23)
      (assert equal? v 23))
- (it "either should combine multiple sources"
+ (it "should be combineable"
      (define v #f)
-     (define ins (-> (either (source)
-                             (source))
+     (define ins (-> (combine-streams (source)
+                                      (source))
                      (run-with (sink (lambda (value)
                                        (set! v value))))))
      (assert list? ins)

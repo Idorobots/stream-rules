@@ -13,3 +13,9 @@
      (->> (op args ... a) rest ...))
     ((->> a)
      a)))
+
+(define ((constantly value) . _)
+  value)
+
+(define ((flip f) a b)
+  (f b a))

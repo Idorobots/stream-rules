@@ -24,3 +24,13 @@
  (it "should handle application with params"
      (assert equal? (->> 23 (cons 5)) (cons 5 23))
      (assert equal? (->> 23 (cons 5) (cons 13)) (cons 13 (cons 5 23)))))
+
+(describe
+ "functionals"
+ (it "constantly should return the value for any args"
+     (define f (constantly 23))
+     (assert equal? (f 23) 23)
+     (assert equal? (f f) 23)
+     (assert equal? (f 1 2 3 4 5) 23))
+ (it "flip should run the function with arguments swapped"
+     (assert equal? ((flip cons) 1 2) (cons 2 1))))
