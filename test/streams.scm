@@ -4,6 +4,12 @@
 
 (describe
  "stream"
+ (it "push should emit values"
+     (define v #f)
+     (define in (make-materialized-stream-stage (lambda (value)
+                                                  (set! v value))))
+     (push in 23)
+     (assert equal? v 23))
  (it "source should allow pushing"
      (define in (-> (source)
                     (run-with (sink number?))))
