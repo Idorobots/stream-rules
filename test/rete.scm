@@ -54,6 +54,20 @@
      (push (car ins) (bindings '?foo 5))
      (assert equal? v 0)
      (push (cadr ins) (bindings))
+     (assert equal? v 2))
+ (it "shouldn't create the cache until materialized"
+     (define v 0)
+     (define ps (pub-sub))
+     (define s (->> (also (matches? (source-subscribe! ps) '(foo ?foo))
+                          (matches? (source-subscribe! ps) '(bar ?foo)))
+                    (map-stream (lambda (value)
+                                  (set! v (+ 1 v))
+                                  value))))
+     (define ins (-> (either s s)
+                     (run-with (sink identity))))
+     (publish ps '(foo 23))
+     (publish ps '(bar 23))
+     (publish ps '(baz 23))
      (assert equal? v 2)))
 
 (describe

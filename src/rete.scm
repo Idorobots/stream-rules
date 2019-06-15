@@ -5,25 +5,28 @@
 (load "../src/ringbuffer.scm")
 (load "../src/utils.scm")
 
-(define ((zip-with-memory size) as bs f)
-  (let ((left (ring-buffer size))
-        (right (ring-buffer size))
-        (combine (lambda (left right next value)
-                   (ring-buffer-store! left value)
-                   (ring-buffer-foreach right (lambda (_ v)
-                                                (push next (f value v)))))))
-    (combine-streams (-> as (via (stage (curry combine left right))))
-                     (-> bs (via (stage (curry combine right left)))))))
+(define (also-opt cache-size as bs)
+  ;; NOTE This needs to be wrapped in make-stream-stage in order to properly
+  ;; NOTE defer cache creation to materialization time.
+  (delay-until-materialization
+   (lambda ()
+     (let ((left (ring-buffer cache-size))
+           (right (ring-buffer cache-size))
+           (merge (lambda (left right next value)
+                    (ring-buffer-store! left value)
+                    (ring-buffer-foreach right (lambda (_ v)
+                                                 (push next (unify value v)))))))
+       (->> (merge-streams (-> as (via (stage (curry merge left right))))
+                           (-> bs (via (stage (curry merge right left)))))
+            (filter-stream (compose not null?)))))))
 
-(define (also as bs)
-  (-> ((zip-with-memory 100) as bs unify)
-      (filter-stream (compose not null?))))
+(define also (curry also-opt 100))
 
-(define either combine-streams)
+(define either merge-streams)
 
 (define (matches? stream pattern)
-  (-> stream
-      (map-stream (curry pattern-match pattern))
-      (filter-stream (compose not null?))))
+  (->> stream
+       (map-stream (curry pattern-match pattern))
+       (filter-stream (compose not null?))))
 
-(define whenever map-stream)
+(define whenever (flip map-stream))

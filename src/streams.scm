@@ -1,6 +1,7 @@
 ;; Streams
 
 (load "../src/utils.scm")
+(load "../src/pubsub.scm")
 
 (define-struct stream-stage (prev materializer))
 (define-struct materialized-stream-stage (emitter))
@@ -13,10 +14,21 @@
 (define (push stage value)
   ((materialized-stream-stage-emitter stage) value))
 
+(define (delay-until-materialization lazy-stream)
+  (make-stream-stage '()
+                     (lambda (_ next)
+                       (materialize (lazy-stream)
+                                    next))))
+
 (define (source)
   (make-stream-stage '()
                      (lambda (self next)
                        (make-materialized-stream-stage (curry push next)))))
+
+(define (source-subscribe! ps)
+  (make-stream-stage '()
+                     (lambda (self next)
+                       (subscribe! ps (curry push next)))))
 
 (define (stage f)
   (make-stream-stage '()
@@ -30,8 +42,12 @@
            (push next (f value)))))
 
 (define (sink f)
-  (stage (lambda (next value)
+  (stage (lambda (_ value)
            (f value))))
+
+(define (sink-publish ps)
+  (stage (lambda (_ value)
+           (publish ps value))))
 
 (define (via source flow)
   (make-stream-stage source
@@ -46,17 +62,17 @@
       (to sink)
       (run-stream)))
 
-(define (map-stream source f)
-  (-> source
+(define (map-stream f stream)
+  (-> stream
       (via (flow f))))
 
-(define (filter-stream source p)
-  (-> source
+(define (filter-stream p stream)
+  (-> stream
       (via (stage (lambda (next value)
                     (when (p value)
                       (push next value)))))))
 
-(define (combine-streams . streams)
+(define (merge-streams . streams)
   (make-stream-stage '() ;; NOTE Unused.
                      (lambda (_ next)
                        (map (curry (flip materialize)
