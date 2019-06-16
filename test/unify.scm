@@ -102,4 +102,17 @@
      (assert equal?
              (pattern-match '(list 1 ?foo 3 ?foo)
                             '(list 1 2 3 4))
+             '()))
+ (it "should be able to match partial lists"
+     (assert equal?
+             (pattern-match '(1 2 3 . ?rest)
+                            '(1 2 3 4 5))
+             (bindings '?rest '(4 5)))
+     (assert equal?
+             (pattern-match '(1 2 3 . ?rest)
+                            '(1 2 3))
+             (bindings '?rest '()))
+     (assert equal?
+             (pattern-match '(1 2 3 . ?rest)
+                            '(1 2))
              '())))
