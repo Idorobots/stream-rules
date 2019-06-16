@@ -78,3 +78,15 @@
                        (map (curry (flip materialize)
                                    (make-materialized-stream-stage (curry push next)))
                             streams))))
+
+(define (split-stream stream . substreams)
+  (delay-until-materialization
+   (lambda ()
+     (let ((ps (pub-sub)))
+       (map (lambda (substream)
+              (-> (source-subscribe! ps)
+                  (substream)
+                  (run-stream)))
+            substreams)
+       (-> stream
+           (to (sink-publish ps)))))))
