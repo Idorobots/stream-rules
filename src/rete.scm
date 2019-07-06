@@ -9,7 +9,7 @@
   ;; NOTE This needs to be wrapped in make-stream-stage in order to properly
   ;; NOTE defer cache creation to materialization time.
   (delay-until-materialization
-   (lambda ()
+   (lambda (_)
      (let ((left (ring-buffer cache-size))
            (right (ring-buffer cache-size))
            (merge (lambda (left right next value)
