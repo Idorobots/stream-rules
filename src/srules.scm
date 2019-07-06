@@ -8,9 +8,12 @@
 ;; Example
 (define facts (pub-sub))
 
+(define (fact-matches? pattern)
+  (matches? (source-subscribe! facts) pattern))
+
 (define functional-language
-  (also (matches? (source-subscribe! facts) '(is ?lang language))
-        (matches? (source-subscribe! facts) '(has-paradigm ?lang functional))))
+  (also (fact-matches? '(is ?lang language))
+        (fact-matches? '(has-paradigm ?lang functional))))
 (define functional-language-rule
   (whenever functional-language
             (lambda (vars)
@@ -19,8 +22,8 @@
               (newline))))
 
 (define object-oriented-language
-  (also (matches? (source-subscribe! facts) '(is ?lang language))
-        (matches? (source-subscribe! facts) '(has-paradigm ?lang object-oriented))))
+  (also (fact-matches? '(is ?lang language))
+        (fact-matches? '(has-paradigm ?lang object-oriented))))
 (define object-oriented-language-rule
   (whenever object-oriented-language
             (lambda (vars)
@@ -30,7 +33,7 @@
 
 (define awesome-language-rule
   (whenever (also functional-language
-                  (matches? (source-subscribe! facts) '(is-lispy? ?lang true)))
+                  (fact-matches? '(is-lispy? ?lang true)))
             (lambda (vars)
               (display "This language is awesome: ")
               (display (get-binding vars '?lang))
@@ -38,7 +41,7 @@
 
 (define weird-ass-language-rule
   (whenever (either (also functional-language object-oriented-language)
-                    (matches? (source-subscribe! facts) '(is-lispy? ?lang false)))
+                    (fact-matches? '(is-lispy? ?lang false)))
             (lambda (vars)
               (display "This language sucks: ")
               (display (get-binding vars '?lang))
